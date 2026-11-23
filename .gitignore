@@ -15,3 +15,6 @@ build/
 *.log
 # Eval runs are kept locally; summaries worth keeping are copied into docs/.
 runs/
+# Synthea jar download and scratch output (cohort generate)
+.cache/
+output/

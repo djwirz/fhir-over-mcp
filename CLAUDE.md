@@ -3,7 +3,7 @@
 An MCP server that gives an AI agent a read-only, patient-scoped view of a synthetic FHIR record, with every result carrying the reference it came from, plus an eval suite that scores agents using it against ground truth computed from the data. It's the data and evals layer for the next project, Respiratory view. Use they/them for Dan.
 
 ## Status
-Planning: `docs/spec.md` and ADRs 0001–0006 are proposed in PR #1 (the ADRs say `Accepted`; merging accepts them). Open questions are in spec §13; settle each one by the slice it names, and the rest before slice 1. The judgment behind the project is in `docs/artifact-spec.md`.
+Building. The spec and ADRs 0001–0006 were accepted in PR #1. Slice 1 (local foundation: project, CI, HAPI, the pinned cohort, the read-only FHIR client) is in progress. Open questions are in spec §13; settle each one by the slice it names. The judgment behind the project is in `docs/artifact-spec.md`.
 
 ## How we work
 - Pull requests only; never push to `main`. Merged PRs are the project's record.

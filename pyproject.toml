@@ -5,6 +5,7 @@ description = "A read-only, patient-scoped MCP server over a synthetic FHIR reco
 requires-python = "==3.12.*"
 dependencies = [
     "httpx>=0.28.1",
+    "mcp>=2.3.0,<3",
     "pydantic>=2.14.4",
 ]
 

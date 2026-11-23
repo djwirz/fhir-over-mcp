@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "fhir-over-mcp": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "fhir-over-mcp", "serve"],
+      "env": {
+        "FHIR_BASE_URL": "http://localhost:8080/fhir"
+      }
+    }
+  }
+}

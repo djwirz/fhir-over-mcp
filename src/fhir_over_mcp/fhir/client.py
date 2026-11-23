@@ -11,6 +11,7 @@ Invariant 5: errors are raised (see `errors.py`); an empty list only ever means 
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 from urllib.parse import urlsplit
@@ -25,6 +26,8 @@ from fhir_over_mcp.fhir.errors import (
 )
 
 Resource = dict[str, Any]
+# A search parameter may repeat (e.g. date=ge2020-01-01&date=le2021-01-01).
+Params = Mapping[str, str | Sequence[str]]
 
 _DEFAULT_PORTS = {"http": 80, "https": 443}
 
@@ -111,7 +114,7 @@ class ReadOnlyFhirClient:
     def search(
         self,
         resource_type: str,
-        params: dict[str, str] | None = None,
+        params: Params | None = None,
         *,
         max_pages: int | None = None,
     ) -> SearchResult:
@@ -131,7 +134,7 @@ class ReadOnlyFhirClient:
             pages += 1
         return SearchResult(resources, truncated=False, total=total)
 
-    def _get(self, url: str, params: dict[str, str] | None = None) -> Resource:
+    def _get(self, url: str, params: Params | None = None) -> Resource:
         if not is_allowed(url, self._allowlist):
             raise NotAllowlisted(url)
         try:

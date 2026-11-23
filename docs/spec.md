@@ -95,8 +95,10 @@ It shows Python for a real service, the Model Context Protocol from both sides (
 | `search_patients` | name, birth date, condition code (any, optional) | patients: ref, name, birth date, sex |
 | `get_patient` | patient ref | the patient's demographics |
 | `list_conditions` | patient ref; optional clinical status, code | conditions: ref, code, clinical status, onset, abatement |
-| `list_medications` | patient ref; optional status | medication requests: ref, medication code, status, authored date, dosage text |
+| `list_medications` | patient ref; optional status | medication requests: ref, medication code, status, authored date, dosage as recorded (its text, or the structured timing and dose when there's no text) |
 | `list_observations` | patient ref; optional code, category, date range, `latest_only` | observations: ref, code, value with unit (or components), effective date |
+
+When a medication request names its drug by reference to a Medication resource, `list_medications` reads that resource and the item carries both refs (`ref` for the request, `medication_ref` for the medication), so every copied value points at the resource it came from.
 
 Tool descriptions say what each tool doesn't do (no free-text search, no other patients) as plainly as what it does. They're part of the system under test, so changing them changes the eval.
 

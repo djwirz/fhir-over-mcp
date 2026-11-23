@@ -1,0 +1,14 @@
+# Checked-in defaults. No secrets here. Environment variables override:
+#   FHIR_BASE_URL   the FHIR base URL to read from
+#   FHIR_ALLOWLIST  comma-separated FHIR base URLs the client may talk to
+# The client refuses to start unless FHIR_BASE_URL is on the allowlist (spec §7, invariant 2).
+
+[fhir]
+base_url = "http://localhost:8080/fhir"
+allowlist = [
+    "http://localhost:8080/fhir",   # local HAPI FHIR (docker compose), loaded with the pinned cohort
+    "https://r4.smarthealthit.org", # SMART Health IT public R4 sandbox (synthetic data)
+]
+# Pages a search follows before it stops and reports `truncated`.
+max_pages = 5
+timeout_seconds = 15.0

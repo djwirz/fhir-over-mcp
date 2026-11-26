@@ -1,7 +1,7 @@
 # 7. Cohort composition: two seeded Synthea runs, generated in a pinned container
 
 Date: 2026-11-22
-Status: Accepted
+Status: Superseded by [8](0008-cohort-moved-to-synthetic-cohort.md) (the cohort is now owned by synthetic-cohort)
 
 ## Context
 ADR 0003 settled on a pinned Synthea cohort loaded into HAPI, and left its size and shape to slice 1 (spec §13, Q1). The cohort has to be big enough for varied cases with a fair share of asthma and COPD patients, and small enough to commit and load quickly. It also has to come out the same on every regeneration, because the ground truth is computed from it.

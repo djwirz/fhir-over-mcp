@@ -84,7 +84,7 @@ It shows Python for a real service, the Model Context Protocol from both sides (
 - **Tools.** Task-shaped and patient-scoped (ADR 0002). Each takes validated inputs and returns a list of items; every item carries `ref` (`Condition/123`), the values exactly as the resource has them (codes with system and display, quantities with units, dates), and nothing computed. Empty results say so explicitly, and errors are errors, never an empty list.
 - **Scope guard.** With `--patient Patient/<id>` (or the HTTP equivalent), the server is bound to that patient. Tools that take a patient reject any other id; `search_patients` returns only the bound patient. Every result is checked on the way out: any resource whose subject isn't the bound patient is dropped and counted as a guard event.
 - **Transports.** stdio for local clients (Claude Code, Claude Desktop, the eval harness, tests); Streamable HTTP for the deployed server. The same tool code serves both.
-- **Cohort and loader.** A Synthea run with a pinned seed and settings, small enough to commit as FHIR bundles (ADR 0003). A loader posts them into HAPI. The bundles are the single source for both the server's data and the eval's ground truth.
+- **Cohort and loader.** A Synthea run with a pinned seed and settings, as FHIR bundles (ADR 0003), generated and owned in [synthetic-cohort](https://github.com/djwirz/synthetic-cohort) and installed here pinned to a tag (ADR 0008). A loader in this repo posts them into HAPI. The bundles are the single source for both the server's data and the eval's ground truth.
 - **Ground-truth generator.** Reads the bundle files directly, not through the server or its tools, and produces each case's expected answer. That independence is the point: a bug in a tool can't also be a bug in the answer key.
 - **Agent harness.** Runs one case: starts or connects to the server as an MCP client, offers its tools to Claude through the Messages API, runs the tool loop, and asks for a final answer in a fixed structure with claims and the refs behind each (ADR 0006).
 - **Scorers.** Deterministic per case type; a citation check on every answer; a judge only for free-text faithfulness (ADR 0005).
@@ -136,8 +136,7 @@ Refusals by the model, truncated answers and infra failures (timeouts, FHIR down
 ## 6. Interfaces
 - **MCP:** the five tools in §4, over stdio (`fhir-over-mcp serve --fhir-base <url> [--patient Patient/<id>]`) and Streamable HTTP.
 - **CLI:**
-  - `cohort generate` (runs Synthea with the pinned settings; only needed to change the cohort),
-  - `cohort load` (posts the committed bundles to a FHIR server),
+  - `cohort load` (posts the pinned cohort's bundles to a local FHIR server; generating and checking the cohort are synthetic-cohort's commands, ADR 0008),
   - `eval cases` (regenerates the case set from the bundles),
   - `eval run --model <id> --reps <n> [--subset <name>] [--max-cost <dollars>]`,
   - `eval oracle`, `eval null`, `eval report <run>`.
@@ -146,7 +145,7 @@ Refusals by the model, truncated answers and infra failures (timeouts, FHIR down
 ## 7. Invariants and failure modes
 
 The invariants (checked by the tests and by every eval run):
-1. **Read-only:** no code path sends anything but GET to a FHIR server. The client has no write methods, and a test asserts the HTTP methods the server ever used. The one exception is the cohort loader (`cohort load`), an admin step that writes the committed bundles into a local HAPI: it refuses any host but localhost, has its own HTTP client, and nothing in the read-only client or the server imports it (tests check both).
+1. **Read-only:** no code path sends anything but GET to a FHIR server. The client has no write methods, and a test asserts the HTTP methods the server ever used. The one exception is the cohort loader (`cohort load`), an admin step that writes the pinned cohort's bundles into a local HAPI: it refuses any host but localhost, has its own HTTP client, and nothing in the read-only client or the server imports it (tests check both).
 2. **Allowlisted:** the server talks only to FHIR base URLs on its allowlist, and refuses to start otherwise.
 3. **Scoped:** in patient-context mode, no tool result contains a resource whose subject is another patient.
 4. **Grounded:** every item a tool returns carries the reference of the resource it came from, and its values are copied from that resource, not computed.
@@ -210,7 +209,7 @@ Stretch: the SMART sandbox run, a hill-climb on tool descriptions or the system 
 1. **Local foundation:**
    - The uv project, ruff, mypy, pytest, CI with gitleaks.
    - Docker Compose for HAPI FHIR.
-   - The cohort: Synthea settings and seed, a check that the asthma and COPD modules produce what the cases need (conditions, inhaler medications, lung-function observations), and the committed bundles.
+   - The cohort: Synthea settings and seed, a check that the asthma and COPD modules produce what the cases need (conditions, inhaler medications, lung-function observations), and the committed bundles (since moved to synthetic-cohort, ADR 0008).
    - The loader and the read-only FHIR client with the allowlist.
 2. **The MCP server over stdio:** the five tools, grounded results, honest empties and errors, input validation, the method audit, and protocol tests. A `.mcp.json` example for Claude Code.
 3. **Patient-context mode:** the scope guard, the output check, and the scoping tests (invariant 3).
@@ -220,7 +219,7 @@ Stretch: the SMART sandbox run, a hill-climb on tool descriptions or the system 
 7. **Demo polish:** the README GIF, the trace screenshot, the eval chart, the SMART sandbox run if there's time, and case-study notes.
 
 ## 13. Open questions (settle before slice 1 unless noted)
-1. **Cohort size and shape. Settled in slice 1: [ADR 0007](adr/0007-cohort-composition.md).** Big enough for varied cases and a fair share of asthma and COPD patients, small enough to commit and load fast. Recommendation: a few dozen patients, with Synthea's settings pushed toward respiratory conditions, and a check on bundle size before committing. Verify the asthma and COPD modules first (build-plan backlog). Decide in slice 1.
+1. **Cohort size and shape. Settled in slice 1: [ADR 0007](adr/0007-cohort-composition.md); now owned by synthetic-cohort ([ADR 0008](adr/0008-cohort-moved-to-synthetic-cohort.md)).** Big enough for varied cases and a fair share of asthma and COPD patients, small enough to commit and load fast. Recommendation: a few dozen patients, with Synthea's settings pushed toward respiratory conditions, and a check on bundle size before committing. Verify the asthma and COPD modules first (build-plan backlog). Decide in slice 1.
 2. **Hosting the remote server.** What does the deployed server read from? Recommendation: the deployed server reads the public SMART Health IT sandbox (nothing to host but the server, and Respiratory view launches from the same place), while the eval runs against the pinned local cohort. Host options: AWS Lambda (Token Keeper already runs there) or a small container host. Check current prices and free limits, and whether the MCP SDK's HTTP transport runs stateless, at slice 6, and write the ADR then.
 3. **Access control on the remote server.** The MCP spec has its own authorization flow (OAuth); a bearer token is simpler. Recommendation: a token or passcode for v1, and leave OAuth to Respiratory view where SMART scopes make it worth it. Decide by slice 6.
 4. **Paid evals in CI.** Never, opt-in by label, or nightly on a small subset? Recommendation: opt-in by label, on a small subset on the cheapest model, with a hard cost cap; full runs by hand. Decide by slice 5.

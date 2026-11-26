@@ -7,9 +7,9 @@ from collections.abc import Iterator
 
 import httpx
 import pytest
+from synthetic_cohort import bundle_dir
+from synthetic_cohort.check import COPD_CODES, summarise_bundle
 
-from fhir_over_mcp.cohort import BUNDLE_DIR
-from fhir_over_mcp.cohort.check import COPD_CODES, summarise_bundle
 from fhir_over_mcp.fhir import NotFound, ReadOnlyFhirClient
 
 pytestmark = pytest.mark.integration
@@ -19,7 +19,7 @@ SYNTHEA_ID_SYSTEM = "https://github.com/synthetichealth/synthea"
 
 def _first_copd_patient() -> tuple[str, int]:
     """A COPD patient's Synthea id and their FEV1/FVC count, read from the files, not the server."""
-    for path in sorted(BUNDLE_DIR.glob("*.json")):
+    for path in sorted(bundle_dir().glob("*.json")):
         bundle = json.loads(path.read_text())
         summary = summarise_bundle(bundle)
         if summary and summary.copd and summary.lung_function_obs:

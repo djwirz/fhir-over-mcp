@@ -15,6 +15,6 @@ build/
 *.log
 # Eval runs are kept locally; summaries worth keeping are copied into docs/.
 runs/
-# Synthea jar download and scratch output (cohort generate)
+# Left by `cohort generate`, which moved to synthetic-cohort (ADR 0008); old checkouts have the jar
 .cache/
 output/

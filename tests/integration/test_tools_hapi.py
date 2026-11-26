@@ -14,8 +14,8 @@ from typing import Any
 import httpx
 import pytest
 from mcp import Client
+from synthetic_cohort.check import ASTHMA_CODES, COPD_CODES
 
-from fhir_over_mcp.cohort.check import ASTHMA_CODES, COPD_CODES
 from fhir_over_mcp.config import FhirSettings
 from fhir_over_mcp.server.app import build_server
 from tests.cohort_files import by_full_url, patient_bundles

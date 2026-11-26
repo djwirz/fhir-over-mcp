@@ -265,6 +265,56 @@ async def test_bad_input_is_rejected_before_fhir_is_called(tool: str, args: dict
     assert fake.requests == []
 
 
+# --- dot segments: they fit the id grammar, but a URL collapses them ------------------------------
+
+
+@pytest.mark.parametrize("ref", ["Patient/.", "Patient/.."])
+@pytest.mark.parametrize(
+    "tool",
+    ["get_patient", "list_conditions", "list_medications", "list_observations"],
+)
+async def test_dot_segment_patient_refs_never_reach_fhir(tool: str, ref: str) -> None:
+    fake = Fake(lambda _: httpx.Response(200, json=bundle([])))
+    async for c in connect(fake):
+        r = await c.call_tool(tool, {"patient_ref": ref})
+    assert r.is_error is True
+    assert r.structured_content is None
+    assert fake.requests == []
+
+
+@pytest.mark.parametrize("reference", ["Medication/.", "Medication/.."])
+async def test_dot_segment_medication_reference_is_an_error(reference: str) -> None:
+    request = {
+        "resourceType": "MedicationRequest", "id": "m1",
+        "medicationReference": {"reference": reference},
+    }  # fmt: skip
+    fake = Fake(lambda _: httpx.Response(200, json=bundle([request])))
+    async for c in connect(fake):
+        r = await c.call_tool("list_medications", {"patient_ref": "Patient/p1"})
+    assert r.is_error is True
+    assert "Couldn't get the data" in text(r)
+    assert [req.url.path for req in fake.requests] == ["/fhir/MedicationRequest"]
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"resourceType": "Bundle", "id": "b1"},
+        {"resourceType": "Patient", "id": "p2"},
+        {"resourceType": "Condition", "id": "p1"},
+        {},
+    ],
+)
+async def test_get_patient_answered_with_something_else_is_an_error(
+    answer: dict[str, Any],
+) -> None:
+    async for c in connect(Fake(lambda _: httpx.Response(200, json=answer))):
+        r = await c.call_tool("get_patient", {"patient_ref": "Patient/p1"})
+    assert r.is_error is True
+    assert r.structured_content is None
+    assert "Couldn't get the data" in text(r)
+
+
 # --- invariant 1 through the server ---------------------------------------------------------------
 
 

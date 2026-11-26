@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from fhir_over_mcp.fhir.errors import (
+    FhirError,
     FhirHttpError,
     FhirUnavailable,
     NotAllowlisted,
@@ -113,6 +114,9 @@ class ReadOnlyFhirClient:
 
     def read(self, resource_type: str, resource_id: str) -> Resource:
         """Read one resource by type and id. Raises `NotFound` if it doesn't exist."""
+        if resource_id in (".", ".."):
+            # httpx would collapse it and request something else (a search, or the base URL).
+            raise FhirError(f"refused: {resource_type}/{resource_id} is not a resource id")
         return self._get(f"{self.base_url}/{resource_type}/{resource_id}")
 
     def search(

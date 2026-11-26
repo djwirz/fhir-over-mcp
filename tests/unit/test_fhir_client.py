@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from fhir_over_mcp.fhir import (
+    FhirError,
     FhirHttpError,
     FhirUnavailable,
     NotAllowlisted,
@@ -237,3 +238,14 @@ def test_search_that_returns_a_non_bundle_raises() -> None:
         pytest.raises(FhirHttpError),
     ):
         c.search("Patient")
+
+
+@pytest.mark.parametrize("resource_id", [".", ".."])
+def test_read_refuses_a_dot_segment_id_before_sending(resource_id: str) -> None:
+    server = Recorder(lambda _: httpx.Response(200, json={}))
+    with (
+        ReadOnlyFhirClient(BASE, ALLOW, transport=server.transport()) as client,
+        pytest.raises(FhirError, match="not a resource id"),
+    ):
+        client.read("Medication", resource_id)
+    assert server.requests == []

@@ -82,7 +82,7 @@ It shows Python for a real service, the Model Context Protocol from both sides (
 ### Components
 - **FHIR client.** httpx, GET only, against a base URL that must be on an allowlist (local HAPI, the SMART Health IT sandbox). Follows search paging up to a cap and says when it hit the cap.
 - **Tools.** Task-shaped and patient-scoped (ADR 0002). Each takes validated inputs and returns a list of items; every item carries `ref` (`Condition/123`), the values exactly as the resource has them (codes with system and display, quantities with units, dates), and nothing computed. Empty results say so explicitly, and errors are errors, never an empty list.
-- **Scope guard.** With `--patient Patient/<id>` (or the HTTP equivalent), the server is bound to that patient. Tools that take a patient reject any other id; `search_patients` returns only the bound patient. Every result is checked on the way out: any resource whose subject isn't the bound patient is dropped and counted as a guard event.
+- **Scope guard.** With `--patient Patient/<id>` (the HTTP equivalent is slice 6's), the server is bound to that patient ([ADR 0009](adr/0009-patient-context-mode.md)). Tools that take a patient reject any other id; `search_patients` returns the bound patient or nothing. Every resource is checked on the way out: one whose subject is missing or isn't the bound patient is dropped and counted as a guard event, and the result says something was withheld (an error if everything was). A Medication has no subject; it's read only by following a request that passed.
 - **Transports.** stdio for local clients (Claude Code, Claude Desktop, the eval harness, tests); Streamable HTTP for the deployed server. The same tool code serves both.
 - **Cohort and loader.** A Synthea run with a pinned seed and settings, as FHIR bundles (ADR 0003), generated and owned in [synthetic-cohort](https://github.com/djwirz/synthetic-cohort) and installed here pinned to a tag (ADR 0008). A loader in this repo posts them into HAPI. The bundles are the single source for both the server's data and the eval's ground truth.
 - **Ground-truth generator.** Reads the bundle files directly, not through the server or its tools, and produces each case's expected answer. That independence is the point: a bug in a tool can't also be a bug in the answer key.
@@ -156,8 +156,8 @@ The invariants (checked by the tests and by every eval run):
 |---|---|
 | FHIR server down or slow | The tool returns an error result naming the problem. In an eval, the attempt goes to `errors.jsonl`, not scored as wrong. |
 | Search returns more than the page cap | The tool returns what it has and says it was truncated, so the agent can narrow the search. |
-| Agent asks for another patient in patient-context mode | The tool refuses with a clear message; the guard event is logged and counted. |
-| A resource without a subject, or with an unexpected one, slips through a search | The output check drops it and counts a guard event. Integration tests seed one on purpose. |
+| Agent asks for another patient in patient-context mode | The tool refuses with a clear message, before any FHIR request; a `refused` guard event is logged and counted. |
+| A resource without a subject, or with an unexpected one, slips through a search | The output check drops it and counts a `dropped` guard event. The note says the list may be incomplete; if nothing is left, the tool returns an error, not an empty list. Integration tests seed one on purpose. |
 | Model refuses | Recorded as a refusal, its own outcome in the report. |
 | Answer cut off at `max_tokens` | Recorded as truncated, not scored as wrong. |
 | API rate limits or errors | Retried with backoff; retries recorded on the row. After the cap, the attempt goes to `errors.jsonl`. |
@@ -170,9 +170,9 @@ The invariants (checked by the tests and by every eval run):
 - **Metrics:**
   - Tool calls by tool and outcome, and their latency.
   - FHIR errors.
-  - Scope-guard events (should be zero outside the scoping tests).
+  - Scope-guard events by kind: `dropped` should be zero outside the scoping tests; `refused` is also expected in out-of-scope eval cases.
   - Per eval run: score, unsupported claims, refusals, errors, cost.
-- **Alerts (deployed server):** FHIR errors above a small threshold for a few minutes; any scope-guard event outside tests; the budget alarm.
+- **Alerts (deployed server):** FHIR errors above a small threshold for a few minutes; any `dropped` scope-guard event outside tests, or a `refused` one outside tests and eval runs; the budget alarm.
 
 ## 9. Security
 - Read-only by construction; the allowlist checked at startup and on every request.
@@ -197,7 +197,7 @@ The invariants (checked by the tests and by every eval run):
 ## 11. Acceptance criteria (v1 "done", depth 3)
 1. **Usable:** Claude Code connects to the server over stdio and answers questions about cohort patients with refs. The deployed server answers over HTTP. A GIF of this is in the README.
 2. **Measured:** a full eval run for at least two models, with spread across repetitions, unsupported claims, refusals, errors, cost and latency, is in the README. The oracle and null results are shown beside it.
-3. **Scoped:** the scoping tests pass, and no eval run has a guard event or a leak.
+3. **Scoped:** the scoping tests pass, and no eval run has a leak or a `dropped` guard event (`refused` is expected in out-of-scope cases).
 4. **Tests and CI:** every automated category in §10 runs on each PR. Deploys come only from `main`.
 5. **Traced:** a trace screenshot of one eval case, model to tool to FHIR, is in the README.
 6. **Ops:** the alerts in §8 exist and each has been fired once on purpose; `docs/runbook.md` covers each; the budget alarm existed before the first deploy.

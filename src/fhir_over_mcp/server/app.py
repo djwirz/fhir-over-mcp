@@ -3,6 +3,9 @@
 Tool descriptions are part of the system under test (CLAUDE.md): changing one changes what the
 eval measures, so each change needs an eval run before and after once the eval exists (slice 4).
 They say what a tool doesn't do as plainly as what it does.
+
+With a `PatientScope` the tools get a `ScopedReader` in place of the client (`scope.py`). The
+listing, descriptions and instructions are the same in both modes.
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from fhir_over_mcp.server.models import (
     PatientItem,
     PatientList,
 )
+from fhir_over_mcp.server.scope import PatientScope, Reader, ScopedReader
 from fhir_over_mcp.server.tools import (
     Code,
     ConditionClinicalStatus,
@@ -50,17 +54,23 @@ READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
 
 @dataclass
 class App:
-    client: ReadOnlyFhirClient
+    client: Reader
 
 
-def _client(ctx: Context[App]) -> ReadOnlyFhirClient:
+def _client(ctx: Context[App]) -> Reader:
     return ctx.request_context.lifespan_context.client
 
 
 def build_server(
-    settings: FhirSettings, *, transport: httpx.BaseTransport | None = None
+    settings: FhirSettings,
+    *,
+    scope: PatientScope | None = None,
+    transport: httpx.BaseTransport | None = None,
 ) -> MCPServer:
-    """Build the server. The FHIR client (and its allowlist check) is created in the lifespan."""
+    """Build the server. The FHIR client (and its allowlist check) is created in the lifespan.
+
+    `scope` binds every session of this server to one patient (patient-context mode).
+    """
 
     @asynccontextmanager
     async def lifespan(_: MCPServer) -> AsyncIterator[App]:
@@ -72,7 +82,7 @@ def build_server(
             transport=transport,
         )
         try:
-            yield App(client=client)
+            yield App(client=client if scope is None else ScopedReader(client, scope))
         finally:
             client.close()
 

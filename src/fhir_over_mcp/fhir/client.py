@@ -65,11 +65,15 @@ def is_allowed(url: str, allowlist: list[str]) -> bool:
 
 @dataclass(frozen=True)
 class SearchResult:
-    """Resources from a search. `truncated` is True when the page cap stopped it early."""
+    """Resources from a search. `truncated` is True when the page cap stopped it early.
+
+    `withheld` counts resources the patient-context output check removed (ADR 0009).
+    """
 
     resources: list[Resource]
     truncated: bool
     total: int | None
+    withheld: int = 0
 
 
 class ReadOnlyFhirClient:

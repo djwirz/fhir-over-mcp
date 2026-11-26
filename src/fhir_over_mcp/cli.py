@@ -14,6 +14,7 @@ def _serve(args: argparse.Namespace) -> int:
 
     from fhir_over_mcp.fhir.client import is_allowed
     from fhir_over_mcp.server.app import build_server
+    from fhir_over_mcp.server.scope import PatientScope
 
     # stdout is the MCP wire; anything we say goes to stderr.
     logging.basicConfig(
@@ -29,7 +30,16 @@ def _serve(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
-    build_server(settings).run()
+    scope = None
+    # `is not None`, so an empty `--patient` refuses to start rather than starting unbound.
+    if args.patient is not None:
+        try:
+            scope = PatientScope(args.patient)
+        except ValueError as e:
+            print(f"refusing to start: --patient is {e}", file=sys.stderr)
+            return 2
+        logging.getLogger("fhir_over_mcp").info("patient-context mode: bound to %s", scope.ref)
+    build_server(settings, scope=scope).run()
     return 0
 
 
@@ -49,6 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     serve = commands.add_parser("serve", help="run the MCP server over stdio")
     serve.add_argument("--fhir-base", help="FHIR base URL (must be on the allowlist)")
+    serve.add_argument(
+        "--patient", help="patient-context mode: bind to one patient, e.g. Patient/123"
+    )
     serve.set_defaults(func=_serve)
     cohort = commands.add_parser("cohort", help="the pinned Synthea cohort").add_subparsers(
         dest="action", required=True

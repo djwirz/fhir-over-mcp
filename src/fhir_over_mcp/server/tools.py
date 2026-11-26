@@ -6,6 +6,9 @@ keeps the rules in one place:
 - "nothing matched" is a normal result with `matched == 0` and a note saying so, while "couldn't
   get the data" raises `ToolError` (invariant 5);
 - a search cut short by the page cap says `truncated` and asks for a narrower search.
+
+In patient-context mode `client` is a `ScopedReader` (`scope.py`), which does the guarding; here
+the only difference is that the note says when something was withheld.
 """
 
 from __future__ import annotations
@@ -13,6 +16,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import date
 from typing import Annotated, Literal
 
@@ -25,7 +29,6 @@ from fhir_over_mcp.fhir import (
     FhirUnavailable,
     NotAllowlisted,
     NotFound,
-    ReadOnlyFhirClient,
     SearchResult,
 )
 from fhir_over_mcp.server import mapping
@@ -37,6 +40,7 @@ from fhir_over_mcp.server.models import (
     PatientItem,
     PatientList,
 )
+from fhir_over_mcp.server.scope import Reader, ScopedReader
 
 PAGE_SIZE = "50"
 
@@ -99,6 +103,12 @@ def _note(
 ) -> str:
     """`kind` is plural ("conditions"); its singular is `kind` without the final "s"."""
     where = f"{subject}{_describe(filters)}"
+    if result.withheld:
+        found = _note(kind, replace(result, withheld=0), count, subject, filters)
+        return (
+            f"{found} {result.withheld} more from the FHIR server couldn't be confirmed as this "
+            "patient's and were withheld, so this list may be incomplete."
+        )
     if count == 0:
         return f"No {kind} matched for {where}. The search succeeded; the record has none."
     if result.truncated:
@@ -110,7 +120,7 @@ def _note(
 
 
 def search_patients(
-    client: ReadOnlyFhirClient,
+    client: Reader,
     name: str | None = None,
     birth_date: date | None = None,
     condition_code: str | None = None,
@@ -130,15 +140,17 @@ def search_patients(
         mapping.patient_item(r) for r in result.resources if r.get("resourceType") == "Patient"
     ]
     filters = {"name": name, "birth_date": birth_date, "condition_code": condition_code}
-    return PatientList(
-        items=items,
-        matched=len(items),
-        truncated=result.truncated,
-        note=_note("patients", result, len(items), "the search", filters),
-    )
+    note = _note("patients", result, len(items), "the search", filters)
+    if isinstance(client, ScopedReader) and not items:
+        # "No patients matched" alone would read as "there is no such patient".
+        note = (
+            f"This server is bound to {client.scope.ref}, so only that patient was searched. "
+            f"They don't match{_describe(filters).removeprefix(' with')}."
+        )
+    return PatientList(items=items, matched=len(items), truncated=result.truncated, note=note)
 
 
-def get_patient(client: ReadOnlyFhirClient, patient_ref: str) -> PatientItem:
+def get_patient(client: Reader, patient_ref: str) -> PatientItem:
     with _fhir_errors():
         try:
             resource = client.read("Patient", _patient_id(patient_ref))
@@ -148,7 +160,7 @@ def get_patient(client: ReadOnlyFhirClient, patient_ref: str) -> PatientItem:
 
 
 def list_conditions(
-    client: ReadOnlyFhirClient,
+    client: Reader,
     patient_ref: str,
     clinical_status: str | None = None,
     code: str | None = None,
@@ -175,9 +187,7 @@ def list_conditions(
 _MEDICATION_REF = re.compile(r"^Medication/([A-Za-z0-9\-.]{1,64})$")
 
 
-def list_medications(
-    client: ReadOnlyFhirClient, patient_ref: str, status: str | None = None
-) -> MedicationList:
+def list_medications(client: Reader, patient_ref: str, status: str | None = None) -> MedicationList:
     params = {"patient": _patient_id(patient_ref), "_count": PAGE_SIZE}
     if status:
         params["status"] = status
@@ -207,7 +217,7 @@ def list_medications(
 
 
 def list_observations(
-    client: ReadOnlyFhirClient,
+    client: Reader,
     patient_ref: str,
     code: str | None = None,
     category: str | None = None,
@@ -246,7 +256,7 @@ def list_observations(
         "code": code, "category": category, "date_from": date_from, "date_to": date_to,
         "latest_only": latest_only,
     }  # fmt: skip
-    shown = SearchResult(result.resources, truncated=truncated, total=result.total)
+    shown = replace(result, truncated=truncated)
     return ObservationList(
         items=items,
         matched=len(items),

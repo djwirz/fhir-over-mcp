@@ -134,8 +134,6 @@ PATIENT_TOOLS: list[tuple[str, dict[str, Any]]] = [
         "Patient/p",  # a prefix of the bound id
         "Patient/p10",  # the bound id is a prefix of it
         "Patient/P1",  # ids are case sensitive
-        "Patient/.",
-        "Patient/..",
     ],
 )
 async def test_another_patient_is_refused_before_fhir_is_called(
@@ -165,6 +163,8 @@ async def test_another_patient_is_refused_before_fhir_is_called(
         "Patient/p1%2Cp2",
         f"{BASE}/Patient/p1",
         "p2",
+        "Patient/.",
+        "Patient/..",
         ["Patient/p1", "Patient/p2"],
     ],
 )

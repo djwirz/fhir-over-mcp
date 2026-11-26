@@ -21,7 +21,7 @@ from datetime import date
 from typing import Annotated, Literal
 
 from mcp.server.mcpserver.exceptions import ToolError
-from pydantic import Field
+from pydantic import AfterValidator, Field
 
 from fhir_over_mcp.fhir import (
     FhirError,
@@ -44,6 +44,15 @@ from fhir_over_mcp.server.scope import Reader, ScopedReader
 
 PAGE_SIZE = "50"
 
+
+def _not_a_dot_segment(patient_ref: str) -> str:
+    # "." and ".." fit the id grammar, but a URL collapses them into a different path. Checked in
+    # code, not in the pattern, so the input schema the agent sees stays the same.
+    if _patient_id(patient_ref) in (".", ".."):
+        raise ValueError("not a patient id: '.' and '..' are path segments")
+    return patient_ref
+
+
 # FHIR ids: 1-64 of [A-Za-z0-9-.]. https://hl7.org/fhir/R4/datatypes.html#id
 PatientRef = Annotated[
     str,
@@ -51,6 +60,7 @@ PatientRef = Annotated[
         pattern=r"^Patient/[A-Za-z0-9\-.]{1,64}$",
         description="The patient's reference, e.g. Patient/123, as returned by search_patients.",
     ),
+    AfterValidator(_not_a_dot_segment),
 ]
 # A FHIR token: `system|code` or a bare code.
 Code = Annotated[
@@ -156,6 +166,9 @@ def get_patient(client: Reader, patient_ref: str) -> PatientItem:
             resource = client.read("Patient", _patient_id(patient_ref))
         except NotFound as e:
             raise ToolError(f"No {patient_ref} on this FHIR server.") from e
+    if f"{resource.get('resourceType')}/{resource.get('id')}" != patient_ref:
+        # Not quoted: whatever came back isn't what was asked for.
+        raise ToolError(f"Couldn't get the data: the FHIR server didn't answer with {patient_ref}.")
     return mapping.patient_item(resource)
 
 

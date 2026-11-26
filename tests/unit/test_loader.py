@@ -61,9 +61,13 @@ def _imports(path: Path) -> set[str]:
     return out
 
 
-def test_read_only_package_never_imports_the_loader() -> None:
-    for path in (PACKAGE / "fhir").rglob("*.py"):
-        assert not any(m.startswith("fhir_over_mcp.cohort") for m in _imports(path)), path
+def test_read_only_side_never_imports_the_loader_or_the_cohort() -> None:
+    """Neither the FHIR client nor the server can reach the write path or the cohort's files."""
+    forbidden = ("fhir_over_mcp.cohort", "synthetic_cohort")
+    paths = [p for part in ("fhir", "server") for p in (PACKAGE / part).rglob("*.py")]
+    assert paths
+    for path in paths:
+        assert not any(m.startswith(forbidden) for m in _imports(path)), path
 
 
 def test_only_the_loader_sends_writes() -> None:

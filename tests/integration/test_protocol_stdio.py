@@ -8,15 +8,14 @@ from __future__ import annotations
 
 import shutil
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
 from mcp import Client, StdioServerParameters
 
-from fhir_over_mcp.cohort import COHORT_DIR
-
 pytestmark = [pytest.mark.integration, pytest.mark.anyio]
 
-REPO = COHORT_DIR.parent
+REPO = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture

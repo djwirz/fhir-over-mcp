@@ -1,7 +1,7 @@
 # 3. A pinned Synthea cohort, loaded into a local HAPI FHIR server
 
 Date: 2026-11-22
-Status: Accepted
+Status: Accepted; superseded in part by [8](0008-cohort-moved-to-synthetic-cohort.md) (the bundles are no longer committed here)
 
 ## Context
 The eval is only meaningful if the data is the same every run and the answer key can be computed from it. Data must be synthetic. The project also wants asthma and COPD patients, because Respiratory view builds on this one. Free sources: the SMART Health IT sandbox (hosted, sample patients), Epic's sandbox (registration, synthetic data), Synthea (generate our own), and HAPI FHIR (an open-source server that runs in Docker).

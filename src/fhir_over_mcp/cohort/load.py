@@ -1,4 +1,4 @@
-"""Load the committed cohort bundles into a local FHIR server.
+"""Load the pinned cohort bundles into a local FHIR server.
 
 This is the only code in the repo that writes to a FHIR server. It is an admin step for local
 development, tests and CI, kept apart from the read-only client on purpose:

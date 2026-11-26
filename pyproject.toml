@@ -7,6 +7,7 @@ dependencies = [
     "httpx>=0.28.1",
     "mcp>=2.3.0,<3",
     "pydantic>=2.14.4",
+    "synthetic-cohort",
 ]
 
 [project.scripts]
@@ -48,3 +49,6 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 markers = ["integration: needs a running HAPI FHIR server (Docker)"]
 addopts = "-m 'not integration' --strict-markers"
+
+[tool.uv.sources]
+synthetic-cohort = { git = "https://github.com/djwirz/synthetic-cohort", tag = "v0.1.0" }

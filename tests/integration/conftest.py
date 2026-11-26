@@ -13,8 +13,8 @@ from collections.abc import Iterator
 
 import httpx
 import pytest
+from synthetic_cohort import bundle_dir
 
-from fhir_over_mcp.cohort import BUNDLE_DIR
 from fhir_over_mcp.cohort.load import load_cohort
 
 HAPI_IMAGE = (
@@ -47,7 +47,7 @@ def fhir_base() -> Iterator[str]:
         base = env_base.rstrip("/")
         _wait_for(base)
         if _patient_count(base) == 0:
-            load_cohort(base, BUNDLE_DIR)
+            load_cohort(base, bundle_dir())
         yield base
         return
 
@@ -63,5 +63,5 @@ def fhir_base() -> Iterator[str]:
     with container:
         base = f"http://localhost:{container.get_exposed_port(8080)}/fhir"
         _wait_for(base)
-        load_cohort(base, BUNDLE_DIR)
+        load_cohort(base, bundle_dir())
         yield base

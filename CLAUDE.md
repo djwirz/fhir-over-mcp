@@ -14,7 +14,7 @@ Building. The spec and ADRs 0001–0006 were accepted in PR #1. Slices 1 (local 
 - When the spec and the code disagree, stop and ask; update the spec in the same PR if the decision changes.
 - Tool descriptions and the agent's prompt are part of the system under test: a change to either needs an eval run before merging, with the before and after in the PR.
 - Never spend money on paid eval runs without Dan's go-ahead; oracle, null and replay runs are free and run any time.
-- Built with Claude Code in the open: the case study gets a section on how AI was used and where it was wrong, so note real mistakes in PR descriptions.
+- Built with Claude Code. The case study says so once, briefly, under "How it was built"; mistakes go under "What went wrong" without attributing them to the AI. Note real mistakes in PR descriptions.
 
 ## Constraints
 - Never employer code, data or names beyond what's public. Synthetic data only (Synthea, the SMART Health IT sandbox).
